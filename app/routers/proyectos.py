@@ -15,8 +15,15 @@ def crear(payload: schemas.ProyectoCrear, db: Session = Depends(get_db)):
     return crud.crear_proyecto(db, payload)
 
 @router.get("", response_model=list[schemas.ProyectoSalida])
-def listar(db: Session = Depends(get_db)):
-    return crud.listar_proyectos(db)
+def listar(
+    estado: models.EstadoProyecto | None = Query(default=None),
+    presupuesto_min: float | None = Query(default=None),
+    presupuesto_max: float | None = Query(default=None),
+    db: Session = Depends(get_db)
+):
+    return crud.listar_proyectos(db, estado=estado,
+                                 presupuesto_min=presupuesto_min,
+                                 presupuesto_max=presupuesto_max)
 
 @router.get("/{proyecto_id}", response_model=schemas.ProyectoSalida)
 def obtener(proyecto_id: int, db: Session = Depends(get_db)):
@@ -45,3 +52,8 @@ def quitar_gerente(proyecto_id: int, db: Session = Depends(get_db)):
 def listar_empleados_de_proyecto(proyecto_id: int, db: Session = Depends(get_db)):
     pr, emps = crud.empleados_de_proyecto(db, proyecto_id)
     return {"proyecto": pr, "empleados": emps}
+
+@router.get("/{proyecto_id}/detalle", response_model=schemas.ProyectoDetalle)
+def obtener_detalle(proyecto_id: int, db: Session = Depends(get_db)):
+    pr, ger, emps = crud.detalle_proyecto(db, proyecto_id)
+    return {"proyecto": pr, "gerente": ger, "empleados": emps}
