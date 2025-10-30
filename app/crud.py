@@ -14,8 +14,16 @@ def crear_empleado(db: Session, datos: schemas.EmpleadoCrear) -> models.Empleado
     db.add(emp); db.commit(); db.refresh(emp)
     return emp
 
-def listar_empleados(db: Session):
-    return db.scalars(select(models.Empleado).order_by(models.Empleado.id)).all()
+def listar_empleados(db: Session, especialidad: str | None = None, estado_empleado: models.EstadoEmpleado | None = None):
+    """
+    Lista empleados con filtros opcionales por especialidad y estado_empleado.
+    """
+    query = select(models.Empleado)
+    if especialidad:
+        query = query.where(models.Empleado.especialidad == especialidad)
+    if estado_empleado:
+        query = query.where(models.Empleado.estado_empleado == estado_empleado)
+    return db.scalars(query.order_by(models.Empleado.id)).all()
 
 def obtener_empleado(db: Session, empleado_id: int):
     emp = db.get(models.Empleado, empleado_id)
@@ -76,8 +84,33 @@ def eliminar_proyecto(db: Session, proyecto_id: int):
     if not pr: raise HTTPException(404, "Proyecto no encontrado")
     db.delete(pr); db.commit()
 
-def listar_proyectos(db: Session):
-    return db.scalars(select(models.Proyecto).order_by(models.Proyecto.id)).all()
+def listar_proyectos(db: Session, estado: models.EstadoProyecto | None = None,
+                     presupuesto_min: float | None = None, presupuesto_max: float | None = None):
+    """
+    Lista proyectos con filtros opcionales por estado y rango de presupuesto.
+    """
+    query = select(models.Proyecto)
+    if estado:
+        query = query.where(models.Proyecto.estado == estado)
+    if presupuesto_min is not None:
+        query = query.where(models.Proyecto.presupuesto >= presupuesto_min)
+    if presupuesto_max is not None:
+        query = query.where(models.Proyecto.presupuesto <= presupuesto_max)
+    return db.scalars(query.order_by(models.Proyecto.id)).all()
+
+def detalle_proyecto(db: Session, proyecto_id: int):
+    """
+    Devuelve proyecto + gerente + empleados asignados (consulta relacional).
+    """
+    pr = db.get(models.Proyecto, proyecto_id)
+    if not pr:
+        raise HTTPException(404, "Proyecto no encontrado")
+    emps = db.scalars(
+        select(models.Empleado).join(models.Asignacion, models.Asignacion.empleado_id == models.Empleado.id
+        ).where(models.Asignacion.proyecto_id == proyecto_id)
+    ).all()
+    ger = db.get(models.Empleado, pr.gerente_id) if pr.gerente_id else None
+    return pr, ger, emps
 
 # ---------- Asignaciones (N:M) ----------
 def _cuenta_asignaciones(db: Session, empleado_id: int) -> int:
