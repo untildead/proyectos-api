@@ -15,8 +15,12 @@ def crear(payload: schemas.EmpleadoCrear, db: Session = Depends(get_db)):
     return crud.crear_empleado(db, payload)
 
 @router.get("", response_model=list[schemas.EmpleadoSalida])
-def listar(db: Session = Depends(get_db)):
-    return crud.listar_empleados(db)
+def listar(
+    especialidad: str | None = Query(default=None),
+    estado: models.EstadoEmpleado | None = Query(default=None, alias="estado_empleado"),
+    db: Session = Depends(get_db)
+):
+    return crud.listar_empleados(db, especialidad=especialidad, estado_empleado=estado)
 
 @router.get("/{empleado_id}", response_model=schemas.EmpleadoSalida)
 def obtener(empleado_id: int, db: Session = Depends(get_db)):
