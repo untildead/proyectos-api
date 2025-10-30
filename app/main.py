@@ -1,6 +1,9 @@
 from fastapi import FastAPI
-from .database import engine, Base
+from .database import engine, Base, ensure_sqlite_schema
 from .routers import empleados, proyectos, asignaciones
+
+# Ajuste de esquema para SQLite antes de crear tablas
+ensure_sqlite_schema()
 
 # Crea tablas (solo para demo práctica)
 Base.metadata.create_all(bind=engine)

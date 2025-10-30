@@ -1,7 +1,7 @@
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, status, Query
 from sqlalchemy.orm import Session
 from ..database import SessionLocal
-from .. import schemas, crud
+from .. import schemas, crud, models 
 
 router = APIRouter(prefix="/empleados", tags=["empleados"])
 

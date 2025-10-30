@@ -16,13 +16,13 @@ def crear_empleado(db: Session, datos: schemas.EmpleadoCrear) -> models.Empleado
 
 def listar_empleados(db: Session, especialidad: str | None = None, estado_empleado: models.EstadoEmpleado | None = None):
     """
-    Lista empleados con filtros opcionales por especialidad y estado_empleado.
+    Lista empleados con filtros opcionales. El filtro por "especialidad" se
+    ignora (no existe en el modelo). El filtro de estado usa la columna
+    real "estado" del modelo.
     """
     query = select(models.Empleado)
-    if especialidad:
-        query = query.where(models.Empleado.especialidad == especialidad)
     if estado_empleado:
-        query = query.where(models.Empleado.estado_empleado == estado_empleado)
+        query = query.where(models.Empleado.estado == estado_empleado)
     return db.scalars(query.order_by(models.Empleado.id)).all()
 
 def obtener_empleado(db: Session, empleado_id: int):
@@ -33,8 +33,15 @@ def obtener_empleado(db: Session, empleado_id: int):
 
 def actualizar_empleado(db: Session, empleado_id: int, datos: schemas.EmpleadoActualizar):
     emp = obtener_empleado(db, empleado_id)
-    for k, v in datos.model_dump(exclude_unset=True).items():
-        setattr(emp, k, v)
+    payload = datos.model_dump(exclude_unset=True)
+    # Mapear estado_empleado -> estado y descartar campos no existentes
+    estado_val = payload.get("estado_empleado", None)
+    if estado_val is not None:
+        payload["estado"] = models.EstadoEmpleado(estado_val)
+    # Aplicar solo campos soportados por el modelo
+    for k in ("nombre", "cargo", "estado"):
+        if k in payload and payload[k] is not None:
+            setattr(emp, k, payload[k])
     db.commit(); db.refresh(emp)
     return emp
 
@@ -52,10 +59,9 @@ def crear_proyecto(db: Session, datos: schemas.ProyectoCrear) -> models.Proyecto
     pr = models.Proyecto(
         nombre=datos.nombre,
         descripcion=datos.descripcion,
-        fecha_inicio=datos.fecha_inicio,
-        fecha_fin=datos.fecha_fin,
         estado=models.EstadoProyecto(datos.estado),
         gerente_id=datos.gerente_id,
+        presupuesto=(int(datos.presupuesto) if getattr(datos, "presupuesto", None) is not None else None),
     )
     db.add(pr); db.commit(); db.refresh(pr)
     return pr
@@ -74,8 +80,12 @@ def actualizar_proyecto(db: Session, proyecto_id: int, datos: schemas.ProyectoAc
             models.Asignacion.proyecto_id == proyecto_id,
             models.Asignacion.empleado_id == payload["gerente_id"]
         ).delete(synchronize_session=False)
-    for k, v in payload.items():
-        setattr(pr, k, v)
+    # Ajustar tipos y descartar campos no existentes
+    if "presupuesto" in payload and payload["presupuesto"] is not None:
+        payload["presupuesto"] = int(payload["presupuesto"])
+    for k in ("nombre", "descripcion", "estado", "gerente_id", "presupuesto"):
+        if k in payload:
+            setattr(pr, k, payload[k])
     db.commit(); db.refresh(pr)
     return pr
 
