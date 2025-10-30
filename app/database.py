@@ -1,14 +1,19 @@
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, DeclarativeBase
+from pydantic_settings import BaseSettings
 
-#SQLite Local
-DATABASE_URL = "sqlite:///./proyectos.db"
+class Settings(BaseSettings):
+    DATABASE_URL: str = "sqlite:///./proyectos.db"
+    class Config:
+        env_file = ".env"
+
+settings = Settings()
 
 class Base(DeclarativeBase):
     pass
 
 engine = create_engine(
-    DATABASE_URL,
-    connect_args={"check_same_thread": False}  # necesario en SQLite con hilos
+    settings.DATABASE_URL,
+    connect_args={"check_same_thread": False} if settings.DATABASE_URL.startswith("sqlite") else {}
 )
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
